@@ -9,9 +9,12 @@ OpenAI-compatible URL. SkyPilot creates the machines in your account; ServePilot
 and tears them down. GCP, Azure and AWS are the only clouds supported.
 
 **Why it exists.** Picking a serving layout by hand is guesswork: vLLM or SGLang, how many GPUs
-per copy of the model, how many copies. The obvious choice (one copy across every GPU) often loses
-to two smaller copies by 30%, and no spec sheet will tell you which. ServePilot measures instead
-of guessing, on your GPUs, in your account.
+per model instance, and how many instances to run. If the full LLM fits on one GPU, ServePilot
+can run it there. If it needs more memory, ServePilot automatically splits it across multiple
+GPUs that work together as one instance, including across machines for supported setups. When
+memory allows, it also tests running multiple independent instances of the same full model to
+handle more requests. ServePilot benchmarks these arrangements and serving engines, then selects
+the best measured configuration for your workload’s throughput or response latency.
 
 ```bash
 git clone https://github.com/colinlikescode/Open-Baseten-Inference.git

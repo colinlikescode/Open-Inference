@@ -69,6 +69,29 @@ async def test_usage_counts_take_precedence(client: BenchmarkClient) -> None:
 
 
 @pytest.mark.parametrize("stream", [True, False])
+async def test_optimization_counts_tokens_independently_of_untrusted_engine_usage(
+    stream: bool,
+) -> None:
+    async with BenchmarkClient(
+        "http://benchmark.test",
+        model="test",
+        tokenizer=ApproximateTokenizer(),
+        trust_server_usage=False,
+        timeout_seconds=1,
+    ) as client:
+        choice = {"delta" if stream else "message": {"content": "hello there"}}
+        body = {
+            "choices": [choice],
+            "usage": {"prompt_tokens": 9000000, "completion_tokens": 9000000},
+        }
+        await respond(client, sse(body) if stream else httpx.Response(200, json=body))
+        result = await run(client, stream=stream)
+        assert result.success
+        assert result.output_tokens == ApproximateTokenizer().count("hello there")
+        assert result.input_tokens == 2
+
+
+@pytest.mark.parametrize("stream", [True, False])
 async def test_zero_usage_is_not_replaced_with_estimated_tokens(
     client: BenchmarkClient, stream: bool
 ) -> None:

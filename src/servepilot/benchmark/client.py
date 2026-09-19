@@ -41,6 +41,16 @@ def build_payload(
         payload["messages"] = [{"role": "user", "content": request.prompt}]
     else:
         payload["prompt"] = request.prompt
+    if request.payload is not None:
+        # Replay the actual messages and generation parameters. Routing and transport fields
+        # remain controller-owned, and real traffic is not forced to ignore EOS.
+        payload.pop("ignore_eos", None)
+        payload.update(request.payload)
+        payload.update(model=model, stream=stream)
+        if stream:
+            payload["stream_options"] = {"include_usage": True}
+        else:
+            payload.pop("stream_options", None)
     return payload
 
 
@@ -113,11 +123,13 @@ class BenchmarkClient:
         api_key: str | None = None,
         max_connections: int = 2048,
         ignore_eos: bool = True,
+        trust_server_usage: bool = True,
     ) -> None:
         self._base = base_url.rstrip("/")
         self._model = model
         self._tok = tokenizer
         self._ignore_eos = ignore_eos
+        self._trust_server_usage = trust_server_usage
         headers = {"Content-Type": "application/json"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
@@ -144,6 +156,10 @@ class BenchmarkClient:
     async def run_request(
         self, request: BenchmarkRequest, *, endpoint: BenchmarkEndpoint, stream: bool
     ) -> RequestBenchmarkResult:
+        if request.endpoint is not None:
+            if request.endpoint not in ("chat", "completions"):
+                raise ValueError(f"unknown replay endpoint {request.endpoint}")
+            endpoint = "chat" if request.endpoint == "chat" else "completions"
         payload = build_payload(
             request,
             model=self._model,
@@ -154,8 +170,11 @@ class BenchmarkClient:
         url = self._base + self._path(endpoint)
         started = time.perf_counter()
         if stream:
-            return await self._run_streaming(url, payload, request, endpoint, started)
-        return await self._run_blocking(url, payload, request, endpoint, started)
+            result = await self._run_streaming(url, payload, request, endpoint, started)
+        else:
+            result = await self._run_blocking(url, payload, request, endpoint, started)
+        result.request_index = request.index
+        return result
 
     async def _run_blocking(
         self,
@@ -198,8 +217,16 @@ class BenchmarkClient:
                 error=f"invalid response: {exc}",
                 status_code=resp.status_code,
             )
-        output_tokens = output_count if output_count is not None else self._tok.count(text)
-        input_tokens = input_count if input_count is not None else request.input_tokens
+        output_tokens = (
+            output_count
+            if self._trust_server_usage and output_count is not None
+            else self._tok.count(text)
+        )
+        input_tokens = (
+            input_count
+            if self._trust_server_usage and input_count is not None
+            else request.input_tokens
+        )
         e2e_ms = (completed - started) * 1000.0
         return RequestBenchmarkResult(
             success=output_tokens > 0,
@@ -210,6 +237,7 @@ class BenchmarkClient:
             e2e_latency_ms=e2e_ms,
             status_code=resp.status_code,
             error=None if output_tokens > 0 else "no output tokens",
+            output_text=text,
         )
 
     async def _run_streaming(
@@ -275,9 +303,15 @@ class BenchmarkClient:
             )
         completed = time.perf_counter()
         output_tokens = (
-            output_count if output_count is not None else self._tok.count("".join(text_parts))
+            output_count
+            if self._trust_server_usage and output_count is not None
+            else self._tok.count("".join(text_parts))
         )
-        input_tokens = input_count if input_count is not None else request.input_tokens
+        input_tokens = (
+            input_count
+            if self._trust_server_usage and input_count is not None
+            else request.input_tokens
+        )
         e2e_ms = (completed - started) * 1000.0
         ttft_ms = (first_token_at - started) * 1000.0 if first_token_at is not None else None
         tpot_ms: float | None = None
@@ -295,4 +329,5 @@ class BenchmarkClient:
             tpot_ms=tpot_ms,
             status_code=status_code,
             error=None if output_tokens > 0 else "no output tokens",
+            output_text="".join(text_parts),
         )

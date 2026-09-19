@@ -1,0 +1,4 @@
+images:
+  vllm: vllm/vllm-openai:v0.28.0
+  sglang: lmsysorg/sglang:v0.5.19
+shm_size: 16g

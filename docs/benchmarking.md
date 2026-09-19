@@ -1,5 +1,26 @@
 # Benchmarking and tuning
 
+## Autonomous optimization
+
+`optimize` freezes the workload, random seed, load levels, correctness cases, tolerances,
+objective, and SLOs in `run.json`. It verifies streaming and blocking output before running
+at least two confirmation trials per load level. All requests must succeed. Missing required
+latency metrics, non-finite measurements, or violated SLOs cannot win. The score uses the
+worst confirmation trial, with a default 2% improvement threshold over the incumbent.
+
+Optimization counts generated output text with the controller's exact tokenizer, ignoring
+editable engines' self-reported usage. A missing exact tokenizer stops a production run.
+The general `benchmark` command and explicit fake testing mode can use approximate counts.
+Raw inputs, generation settings, seeds, output text, and timings are saved alongside aggregate
+measurements. YAML distributions and JSONL replay are both supported; replay preserves original
+messages/prompts and generation settings. Profiler traffic is separate from scored trials.
+
+Default correctness cases establish repeatable baseline regression references. They do not
+establish general semantic accuracy. `--correctness` supplies fixed goldens with exact, numeric,
+or text-similarity checks. Tolerances cannot change during a run or on resume.
+
+The details below also describe the existing manual benchmark and staged tuner.
+
 ## Requests
 
 Prompts are generated from a fixed word list with the model's own tokenizer, so a "512

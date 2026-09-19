@@ -3,7 +3,32 @@
 ServePilot does not run models itself. It starts vLLM or SGLang and talks to them over
 their OpenAI-compatible HTTP APIs.
 
-## Finding an engine
+## Optimizer runtimes
+
+`optimize` prepares separate official vLLM and SGLang container images on the supplied GPU
+workers. Defaults are `vllm/vllm-openai:v0.28.0` and `lmsysorg/sglang:v0.5.19`; tags are resolved
+to immutable digests before experiments. `--runtime-config` overrides images and shared-memory
+size. Docker and NVIDIA Container Toolkit can be bootstrapped; drivers and machine access must
+already work. The CPU controller does not need either inference engine installed.
+
+Each replica gets only its selected GPU UUIDs and a read-only model cache. Native vLLM
+multi-node execution uses `vllm serve`, `--nnodes`, `--node-rank`, and headless workers.
+SGLang uses `--nnodes`, `--node-rank`, and `--dist-init-addr`. A plan selecting Ray gets a managed
+head and workers inside its engine image; no existing Ray cluster is required.
+
+SGLang prefill/decode experiments use `CandidatePlan.prefill`: one or more prefill groups,
+their TP/PP layout, memory fraction, and `nixl` or `mooncake`. The plan's ordinary GPU group is
+the decode stage. The controller starts the stages, waits for each, and starts a GPU-free
+SGLang model gateway. This path currently supports one decode group with TP/PP; unsupported
+DP-attention or engine combinations are rejected before launch. Transfer-engine and router
+dependencies must exist in the experimental image; Pi can install them through runtime tools.
+
+`profile: true` captures diagnostic Torch traces after the scored trials, with separate
+prefill and decode captures. Traces and summaries are saved under `profiler-results/`.
+They cannot contribute a score. Runtime commands, image archives, environment settings,
+patches, and source files are retained in the recipe.
+
+## Finding an engine for manual commands
 
 For each engine, in order:
 
@@ -17,20 +42,6 @@ dependencies often conflict. The engine's `bin/` directory is put on `PATH` for 
 process so its own tools (`ninja` for JIT kernels, for example) are found.
 
 `servepilot doctor` shows what was found and which interpreter it will use.
-
-`servepilot launch` installs one engine on the machines it rents: vLLM by default, SGLang
-with `--engine sglang`. The plan it prints before launching only lists that engine.
-When launched from a source checkout, ServePilot builds its own wheel and uploads that exact
-code to the machines. `--package` selects a local wheel or another pip requirement. Installations
-without a checkout use the public Git repository's `main` branch by default; pin a commit with
-`--package` when reproducing a deployment.
-
-If a launch command is interrupted, the VM and job may still be running. Check
-`sky status NAME --refresh` and `sky logs NAME` before retrying; reuse `--name NAME` to resume
-the same cluster. The launcher only reports a serving endpoint after its `/health` check
-succeeds. If health works inside the VM but the external address times out, check the cluster's
-firewall rule for TCP 8000: an interrupted SkyPilot provisioning step can leave it unapplied.
-`servepilot down NAME` tears down that cluster when it is no longer needed.
 
 ## vLLM
 

@@ -89,22 +89,3 @@ def select_engines(registry: EngineRegistry, requested: str) -> list[InferenceEn
             )
         return available
     return [registry.require(requested)]
-
-
-def assumed_engines(requested: str) -> list[InferenceEngine]:
-    """Adapters for engines that are not installed here but will be on the target machine."""
-    from servepilot.engines.interpreter import EngineRuntime
-    from servepilot.engines.sglang import SGLangEngine
-    from servepilot.engines.vllm import VLLMEngine
-
-    vllm = VLLMEngine(EngineRuntime(python="python", version="assumed"))
-    sglang = SGLangEngine(EngineRuntime(python="python", version="assumed"))
-    if requested == "vllm":
-        return [vllm]
-    if requested == "sglang":
-        return [sglang]
-    if requested == "fake":
-        from servepilot.testing.fake_engine import FakeEngine
-
-        return [FakeEngine()]
-    return [vllm, sglang]

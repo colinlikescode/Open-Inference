@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
+from typing import Any
 
 from servepilot.models.tokenizer import TokenCounter
 from servepilot.schemas.workload import WorkloadProfile
@@ -123,6 +124,8 @@ class BenchmarkRequest:
     input_tokens: int
     max_tokens: int
     shared_prefix: str = ""
+    payload: dict[str, Any] | None = None
+    endpoint: str | None = None
 
 
 class PromptGenerator:

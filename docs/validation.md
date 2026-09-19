@@ -1,4 +1,34 @@
-# Real GPU validation
+# Validation status
+
+The SSH/container optimizer in this revision was developed without access to real GPUs or a
+running Docker daemon. CPU tests exercise real HTTP inference subprocesses, SSH guardians,
+connection-loss cleanup, TCP bandwidth checks, Pi tool calls, experiment acceptance/rejection,
+resume integrity, and saved-recipe serving. Container command tests cover native multi-node
+vLLM/SGLang and SGLang prefill/decode GPU placement. Lint, types, and package resources are
+checked separately.
+
+The CPU regression run passes **351 tests**, with **5 GPU tests deselected**. Three additional
+archive integrity cases also pass (corruption, missing file and a symlink outside the recipe).
+Ruff lint and formatting, strict mypy checks across 111 source files, shell syntax, and
+source/wheel builds pass. Packaged resources include the Pi extension and remote worker and
+bootstrap scripts. Setup-deadline recovery, baseline-deadline recovery and saved-recipe
+serving are covered by CPU integration tests. Archive checksum and containment checks use
+synthetic files; Docker image import and execution require a daemon on the target workers.
+
+A live reasoning test successfully ran Pi 0.83.0 through LiteLLM 1.101.0 using Gemini 3.8 Flash,
+including a controller tool invocation. It used a synthetic cluster description and did not
+run GPU inference. Credentials were supplied transiently and were not saved in the repository.
+
+Real GPU launch, CUDA/NCCL behavior, model numerical parity, and actual performance remain
+hardware-dependent. The CPU simulation is explicitly labeled in every generated report and
+cannot be selected as a production fallback. Optimization requires independent correctness
+and repeated measurements on the target cluster before it can produce a production winner.
+
+## Historical GPU validation (previous manual serving implementation)
+
+The following measurements predate the new optimizer. They validate the older planner,
+engine adapters, and serving path on that hardware, not the new container orchestration.
+
 
 Validated on 6 September 2026 using one GCP Spot `a4-highgpu-8g` VM in
 `europe-west1-b`: eight NVIDIA B200 GPUs, a full NVLink mesh, and NVIDIA driver
@@ -78,22 +108,15 @@ the local source; ServePilot and vLLM both used Ray 2.58.0.
 
 After validation, the test VM, its persistent disk, and its cluster firewall rule were deleted.
 
-## Reproduction
+## Reproducing on existing machines
 
-With GCP credentials and quota configured, install this checkout and launch:
-
-```bash
-pip install -e ".[cloud]"
-sky check gcp
-servepilot launch Qwen/Qwen3-32B --cloud gcp --accelerators B200:8 \
-  --spot --autostop 20 --name servepilot-validation
-```
-
-Cloud launches build and upload the current checkout. Record the commit, model revision,
-engine versions, and tuning JSON when comparing another run. Instance availability, engine
-versions, workload, and cache state can change the measurements. Remove the rented cluster
-when finished:
+Use the setup in [instructions.md](../instructions.md), supply existing machines in
+`nodes.yaml`, and run:
 
 ```bash
-servepilot down servepilot-validation
+servepilot optimize --model Qwen/Qwen3-32B --nodes nodes.yaml --minutes 60 --output validation-run
 ```
+
+Record `run.json`, the pinned model revision and image digests, the complete experiment
+history, and all benchmark data when comparing runs. Stop owned services with
+`servepilot stop`; machine lifecycle remains with the operator.

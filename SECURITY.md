@@ -1,27 +1,44 @@
 # Security
 
-## Reporting a problem
+Report vulnerabilities privately to the maintainers listed on the repository page.
 
-Please do not open a public issue for security problems. Email the maintainers (see the
-repository page) with what you found and how to reproduce it. You will get a reply within a
-few days.
+## Optimization boundary
 
-## What ServePilot does with secrets
+Pi connects to its reasoning model through your LiteLLM OpenAI-compatible endpoint. Its
+provider key is read from the configured environment variable and is not saved in recipes,
+logs, or generated provider configuration. Pi's built-in shell, filesystem tools, extensions,
+skills, and context discovery are disabled. A private authenticated controller bridge exposes
+only the experiment tools.
 
-- `HF_TOKEN` (and the other Hugging Face token variables) is forwarded to engine processes
-  so gated models can download. It is redacted from every command ServePilot prints and from
-  its logs.
-- `servepilot launch` passes your local Hugging Face token to SkyPilot as a secret. The
-  printed task shows `***`; the task file on disk (`~/.cache/servepilot/skypilot/`) does hold
-  the real value and is written with mode 0600.
-- Nothing is sent anywhere other than Hugging Face (model metadata and downloads), your own
-  cloud account through SkyPilot when you use `launch`, and the engines on your machines.
+Agent commands run inside disposable engine containers on machines in `nodes.yaml`. These
+containers do not mount the controller filesystem, Docker socket, host credentials, or
+writable model weights. Successful edits become image layers. The controller owns the fixed
+workload, correctness suite, measurements, score calculation, and append-only experiment
+history. Profiler traces and engine logs are diagnostic data, never authoritative scores.
 
-## What ServePilot does not do
+The controller stages private models using a trusted, digest-pinned base image. Hugging Face
+credentials travel through SSH stdin to that downloader, and are not provided to experimental
+images. Engine containers read a model cache volume. The older manual `serve`/`tune` commands
+forward model-download credentials to their engine processes; they do not provide the
+optimizer's container boundary.
 
-- It does not enable `trust_remote_code` unless you pass `--trust-remote-code`.
-- It does not add authentication to the API it serves. Bind to `127.0.0.1` (the default) or
-  put it behind your own proxy if the machine is reachable from outside.
-- It never runs shell strings; engine commands are argument lists.
-- It only signals processes it started, and checks the process start time before doing so,
-  so a reused PID is never killed by mistake.
+Containers share the host kernel. GPU serving uses host networking and selected NVIDIA devices;
+InfiniBand devices are exposed when present. This boundary is intended for controlled runtime
+experiments on trusted infrastructure, not for running arbitrary hostile tenants together.
+SSH host-key verification remains enabled. Bootstrap can install Docker and NVIDIA Container
+Toolkit using root or passwordless sudo on supplied workers; `--no-bootstrap` disables it.
+
+## Process and API ownership
+
+Remote guardians stop owned processes and containers when their controller connection closes
+or its heartbeat lease expires. Cleanup targets the run's container names/labels. Commands
+never create or terminate machines, prune Docker globally, or stop unrelated workloads.
+Local stop operations validate PID creation times before signaling a process.
+
+The public inference API defaults to `127.0.0.1` and does not add authentication. Use your own
+authenticated reverse proxy when exposing it. Keep worker inference and distributed-runtime
+ports on the cluster network. `--trust-remote-code` is opt-in.
+
+Run artifacts can contain your model prompts and outputs, machine addresses, source patches,
+and diagnostic traces. Store and share them accordingly. Reasoning requests include cluster
+metadata and experiment evidence with the LiteLLM provider you configure.

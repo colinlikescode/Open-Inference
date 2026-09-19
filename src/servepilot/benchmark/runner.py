@@ -6,6 +6,7 @@ import asyncio
 import random
 import time
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 
 from servepilot.benchmark.client import BenchmarkClient
 from servepilot.benchmark.gpu_sampler import GPUSampler
@@ -66,18 +67,33 @@ class BenchmarkRunner:
         hardware: HardwareProvider | None = None,
         api_key: str | None = None,
         ignore_eos: bool = True,
+        trust_server_usage: bool = True,
+        requests: Sequence[BenchmarkRequest] | None = None,
+        on_observations: Callable[
+            [BenchmarkSpec, list[BenchmarkRequest], list[RequestBenchmarkResult]], None
+        ]
+        | None = None,
     ) -> None:
         self._tok = tokenizer
         self._workload = workload
         self._hardware = hardware
         self._api_key = api_key
         self._ignore_eos = ignore_eos
+        self._trust_server_usage = trust_server_usage
+        if requests is not None and not requests:
+            raise ValueError("replay workload cannot be empty")
+        self._requests = list(requests) if requests is not None else None
+        self._on_observations = on_observations
 
     async def _generate(
         self, spec: BenchmarkSpec, count: int, seed_offset: int
     ) -> list[BenchmarkRequest]:
         """Prompt generation tokenizes every request several times; run it off the event loop
         so the router (which shares the loop during tuning) keeps serving."""
+        if self._requests is not None:
+            source = list(self._requests)
+            random.Random(spec.seed + seed_offset).shuffle(source)
+            return [replace(source[i % len(source)], index=i) for i in range(count)]
         return await asyncio.to_thread(
             PromptGenerator(self._tok, spec.seed).generate,
             self._workload,
@@ -125,6 +141,7 @@ class BenchmarkRunner:
             timeout_seconds=spec.request_timeout_seconds,
             api_key=self._api_key,
             ignore_eos=self._ignore_eos,
+            trust_server_usage=self._trust_server_usage,
         ) as client:
             if warmup:
                 await self.warmup(client, spec)
@@ -135,6 +152,8 @@ class BenchmarkRunner:
                 else:
                     results = await self._closed_loop(client, spec, requests, progress)
                 duration = time.perf_counter() - start
+            if self._on_observations is not None:
+                await asyncio.to_thread(self._on_observations, spec, requests, results)
             return aggregate(
                 candidate_id,
                 spec,

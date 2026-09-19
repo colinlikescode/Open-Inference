@@ -1,0 +1,10 @@
+workload:
+  input_tokens:
+    p50: 2000
+    p95: 12000
+  output_tokens:
+    p50: 500
+    p95: 2000
+  concurrency:
+    expected: 64
+    peak: 128

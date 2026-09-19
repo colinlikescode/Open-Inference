@@ -93,7 +93,7 @@ class Deployment:
             stagger_seconds=stagger_seconds,
             router=self.router,
         )
-        self.health = HealthChecker(self.router, self.replica_set)
+        self.health = HealthChecker(self.router, self.replica_set, on_restart=self._refresh_state)
         self.ctx = ServingContext(
             router=self.router,
             model_id=model.model_id,
@@ -122,6 +122,9 @@ class Deployment:
         return self.server.base_url
 
     # ------------------------------------------------------------------ lifecycle
+    async def _refresh_state(self) -> None:
+        await asyncio.to_thread(self._write_state)
+
     def _write_state(self) -> None:
         children = [
             ChildProcessRecord(

@@ -1,4 +1,23 @@
-# How ServePilot works
+# How Open BaseTen works
+
+The primary flow is `optimize`: a CPU controller inspects supplied GPU machines through SSH,
+prepares pinned engine containers, establishes a baseline, and asks Pi for experiments through
+LiteLLM. The deterministic verifier owns correctness, repeated benchmarks, SLOs, and acceptance.
+Each experiment stops completely before the next begins. The selected image is archived and
+launched cleanly; `deploy` replays the archive without invoking Pi.
+
+`optimization/` contains the immutable run contract, time budget, append-only hash-chained
+history, correctness verifier, Pi bridge, container editing tools, selection rules, reports,
+recipes, and orchestration. Agents can edit engine images but cannot write controller code or
+authoritative evidence. Each output directory has an exclusive controller lock.
+
+`cluster/` implements SSH inventory, guarded remote processes, Docker/NVIDIA bootstrap,
+model staging, native distributed launch, optional managed Ray, TCP/NCCL diagnostics, and
+SGLang prefill/decode orchestration. A lost connection or expired heartbeat stops owned
+process groups and containers. No infrastructure is provisioned.
+
+The existing static planner and manual `plan`/`tune`/`serve` interfaces remain available. Their
+shared components are also used by the autonomous optimizer:
 
 ```text
 Hardware + Model + Workload
@@ -19,8 +38,8 @@ Hardware + Model + Workload
   Runtime             engine replicas + router + OpenAI-compatible API
 ```
 
-The planner proposes. The benchmark decides. The runtime executes. Those three never share
-code paths.
+The planner supplies initial layouts. Pi proposes subsequent experiments. The benchmark
+measures, the verifier decides, and the runtime executes.
 
 ## Pieces
 
@@ -34,8 +53,8 @@ code paths.
 | `runtime/` | Replica set, health checks with bounded restarts, least-in-flight router, ports, runtime state file. | engine processes |
 | `api/` | `/v1/chat/completions`, `/v1/completions`, `/v1/models`, `/health`, `/status`, `/metrics`. Streaming pass-through proxy. | clients |
 | `cache/` | Tuning records keyed by hardware + model + workload fingerprints. Atomic writes. | disk |
-| `cluster/` | Ray: cluster-wide hardware snapshot, engine processes placed on nodes through actors. | Ray |
-| `cloud/` | Instance shape catalog for planning; SkyPilot task generation and the `sky` CLI for launching. | SkyPilot |
+| `cluster/` | SSH discovery, bootstrap, containers, network diagnostics, native distributed inference and optional Ray. | supplied machines |
+| `optimization/` | Pi tools, fixed verification, budgets, history, recipes and reports. | LiteLLM, isolated containers |
 | `testing/` | Fake hardware fixtures, fake engine, fake OpenAI server. Used by the test suite and by you, without a GPU. | - |
 
 ## Abstractions worth knowing
@@ -44,7 +63,7 @@ code paths.
   the fake provider all implement it.
 - `InferenceEngine` is the engine interface: `supports`, `build_launch_spec`,
   `wait_until_ready`, `classify_failure`. All engine flags live in the adapters.
-- `Launcher` starts processes locally or on Ray nodes. Both return a `ProcessHandle` with the
+- `Launcher` starts local, SSH/container, or legacy Ray processes. Each returns a `ProcessHandle` with the
   same methods, so the tuner and health checker do not care where a replica runs.
 - `CandidateEvaluator.open(plan)` launches a candidate and returns a session you can
   benchmark. The production one launches real replicas plus the real router. Tests use a

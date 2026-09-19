@@ -1,0 +1,23 @@
+verify_streaming: true
+timeout_seconds: 120
+cases:
+  - name: arithmetic
+    endpoint: chat
+    request:
+      messages:
+        - role: user
+          content: "What is 17 plus 25? Answer with only the number."
+      max_tokens: 16
+      temperature: 0
+    expected: "42"
+    comparison: exact
+  - name: repeatable-code
+    endpoint: chat
+    request:
+      messages:
+        - role: user
+          content: "Write a Python function that squares its input. No explanation."
+      max_tokens: 64
+      temperature: 0
+    # No expected value: require repeatable baseline output, then exact regression parity.
+    comparison: exact

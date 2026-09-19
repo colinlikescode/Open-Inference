@@ -16,14 +16,11 @@ from rich.panel import Panel
 from rich.table import Table
 
 from servepilot import __version__
-from servepilot.cli import cloud_cmd
 from servepilot.cli import doctor as doctor_checks
 from servepilot.cli.common import (
-    AcceleratorsOpt,
     AllowBusyOpt,
     AllowContextOverrideOpt,
     CLIState,
-    CloudOpt,
     ConfigOpt,
     ContextLengthOpt,
     EngineOpt,
@@ -32,7 +29,6 @@ from servepilot.cli.common import (
     HostOpt,
     InputTokensOpt,
     InputTokensP95Opt,
-    InstanceOpt,
     JSONOpt,
     KVCacheDtypeOpt,
     MaxConcurrencyOpt,
@@ -42,7 +38,6 @@ from servepilot.cli.common import (
     MemoryFractionOpt,
     MemoryHeadroomOpt,
     ModelArg,
-    NodesOpt,
     NoStreamOpt,
     ObjectiveOpt,
     OutputTokensOpt,
@@ -67,6 +62,7 @@ from servepilot.cli.common import (
     make_hardware_provider,
     run_async,
 )
+from servepilot.cli.optimize_cmd import register as register_optimization
 from servepilot.cli.pipeline import (
     equivalent_commands,
     lookup_cache,
@@ -103,7 +99,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 app = typer.Typer(
     name="servepilot",
-    help="Automatically determine the fastest way to serve an LLM on your NVIDIA GPUs.",
+    help="Open BaseTen: optimize and serve models on your existing NVIDIA GPUs.",
     no_args_is_help=True,
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -199,10 +195,31 @@ def doctor(
         int, typer.Option("--port", help="Public port to check.")
     ] = DEFAULT_PUBLIC_PORT,
     ray_address: RayAddressOpt = None,
+    nodes: Annotated[
+        Path | None,
+        typer.Option("--nodes", help="Check existing SSH GPU workers from this controller."),
+    ] = None,
     json_output: JSONOpt = False,
 ) -> None:
     """Verify the environment: OS, Python, NVIDIA/NVML, engines, Hugging Face access, ports."""
     state = get_state(ctx)
+    if nodes is not None:
+        if ray_address:
+            raise ConfigurationError("choose --nodes or --ray-address")
+        from servepilot.cluster.diagnostics import diagnose
+        from servepilot.cluster.inventory import NodeInventory
+
+        diagnostics = run_async(diagnose(NodeInventory.load(nodes)))
+        if json_output:
+            emit_json(diagnostics)
+        else:
+            state.console.print(f"Open BaseTen cluster checks: {diagnostics['status']}")
+            for check in diagnostics["checks"]:
+                state.console.print(
+                    f"  {check.get('node', 'controller')}: {check['check']} — {check['detail']}"
+                )
+            state.console.print("Controller connectivity and pairwise TCP bandwidth checks passed.")
+        return
     provider = make_hardware_provider(state.settings, ray_address)
     registry = build_registry(state.settings)
     checks = doctor_checks.run_all(provider, registry, state.settings, public_port=port)
@@ -246,11 +263,24 @@ def doctor(
 @inspect_app.command("hardware")
 @handle_errors
 def inspect_hardware(
-    ctx: typer.Context, ray_address: RayAddressOpt = None, json_output: JSONOpt = False
+    ctx: typer.Context,
+    ray_address: RayAddressOpt = None,
+    json_output: JSONOpt = False,
+    nodes: Annotated[
+        Path | None, typer.Option("--nodes", help="Inspect existing SSH GPU workers.")
+    ] = None,
 ) -> None:
     """Show GPUs, memory and interconnect topology."""
     state = get_state(ctx)
-    snap = make_hardware_provider(state.settings, ray_address).snapshot()
+    if nodes is not None:
+        if ray_address:
+            raise ConfigurationError("choose --nodes or --ray-address")
+        from servepilot.cluster.inventory import NodeInventory
+        from servepilot.cluster.ssh_provider import SSHHardwareProvider
+
+        snap = SSHHardwareProvider(NodeInventory.load(nodes)).snapshot()
+    else:
+        snap = make_hardware_provider(state.settings, ray_address).snapshot()
     if json_output:
         emit_json(snap.model_dump(mode="json"))
     else:
@@ -307,13 +337,9 @@ def plan(
     revision: RevisionOpt = None,
     kv_cache_dtype: KVCacheDtypeOpt = None,
     ray_address: RayAddressOpt = None,
-    cloud: CloudOpt = None,
-    instance: InstanceOpt = None,
-    accelerators: AcceleratorsOpt = None,
-    nodes: NodesOpt = 1,
     json_output: JSONOpt = False,
 ) -> None:
-    """Show which layouts can work. Launches nothing. Add --cloud to plan for machines you do not have yet."""
+    """Show which layouts can work on existing GPUs without launching inference."""
     state = get_state(ctx)
     flags = _flags(**{k: v for k, v in locals().items() if k in PlanFlags.__dataclass_fields__})
     ws = build_workspace(flags, state)
@@ -783,6 +809,17 @@ def status(ctx: typer.Context, json_output: JSONOpt = False) -> None:
     from servepilot.runtime.state import RuntimeStateStore
 
     state = get_state(ctx)
+    from servepilot.optimization.controller_state import ControllerState
+
+    controller = ControllerState(state.settings.state_dir).read()
+    if controller and controller["running"]:
+        if json_output:
+            emit_json(controller)
+        else:
+            state.console.print(
+                f"Open BaseTen {controller['phase']}: {controller['message']}\nOutput: {controller['output']}\nPID: {controller['pid']}"
+            )
+        return
     store = RuntimeStateStore(state.settings.state_dir)
     rt = store.read()
     if rt is None:
@@ -844,6 +881,17 @@ def stop(ctx: typer.Context, json_output: JSONOpt = False) -> None:
     from servepilot.runtime.state import RuntimeStateStore
 
     state = get_state(ctx)
+    from servepilot.optimization.controller_state import ControllerState
+
+    controller = ControllerState(state.settings.state_dir).stop()
+    if controller:
+        if json_output:
+            emit_json(controller)
+        else:
+            state.console.print(controller["message"])
+        if not controller["stopped"]:
+            raise typer.Exit(code=int(ExitCode.RUNTIME_FAILURE))
+        return
     store = RuntimeStateStore(state.settings.state_dir)
     rt = store.read()
     if rt is None:
@@ -980,7 +1028,7 @@ def cache_clear(
         state.console.print(f"Removed {removed} tuning record(s).")
 
 
-cloud_cmd.register(app, inspect_app, handle_errors)
+register_optimization(app, handle_errors)
 
 
 def main() -> None:

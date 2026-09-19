@@ -75,6 +75,16 @@ class MemoryEstimate(BaseModel):
         )
 
 
+class PrefillConfig(BaseModel):
+    """SGLang prefill workers paired with the plan's decode worker group."""
+
+    gpu_groups: list[list[int]] = Field(min_length=1)
+    tensor_parallel_size: int = Field(ge=1)
+    pipeline_parallel_size: int = Field(default=1, ge=1)
+    memory_fraction: float = Field(default=0.8, gt=0, lt=1)
+    transfer_backend: Literal["nixl", "mooncake"] = "nixl"
+
+
 class CandidatePlan(BaseModel):
     """One concrete serving topology the tuner may launch."""
 
@@ -115,6 +125,7 @@ class CandidatePlan(BaseModel):
     kv_cache_dtype: str | None = None
 
     engine_args: dict[str, Any] = Field(default_factory=dict)
+    prefill: PrefillConfig | None = None
 
     estimated_memory: MemoryEstimate | None = None
 
@@ -125,7 +136,11 @@ class CandidatePlan(BaseModel):
 
     @property
     def gpu_ids(self) -> list[int]:
-        return [g for group in self.gpu_groups for g in group]
+        return [
+            g
+            for group in [*self.gpu_groups, *(self.prefill.gpu_groups if self.prefill else [])]
+            for g in group
+        ]
 
     @property
     def gpu_count(self) -> int:
@@ -143,6 +158,7 @@ class CandidatePlan(BaseModel):
             f"|ep={self.expert_parallel_size if self.expert_parallel_enabled else 0}"
             f"|dpa={int(self.dp_attention_enabled)}|ctx={self.context_length}"
             f"|groups={self.gpu_groups}|backend={self.distributed_backend or ''}"
+            f"|prefill={self.prefill.model_dump_json() if self.prefill else ''}"
         )
 
     def label(self) -> str:
@@ -156,6 +172,8 @@ class CandidatePlan(BaseModel):
         base = "×".join(parts)
         rep = f"{self.replica_count} replica" + ("s" if self.replica_count != 1 else "")
         suffix = f", {self.distributed_backend}" if self.distributed_backend else ""
+        if self.prefill:
+            suffix += f", PD {len(self.prefill.gpu_groups)} prefill × TP{self.prefill.tensor_parallel_size}"
         return f"{base} × {rep} ({self.engine.value}{suffix})"
 
     def with_updates(self, **updates: Any) -> CandidatePlan:

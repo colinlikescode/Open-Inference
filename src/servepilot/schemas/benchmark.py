@@ -69,6 +69,8 @@ class RequestBenchmarkResult(BaseModel):
     tpot_ms: float | None = None
     error: str | None = None
     status_code: int | None = None
+    request_index: int | None = None
+    output_text: str | None = None
 
 
 class GPUBenchmarkMetrics(BaseModel):

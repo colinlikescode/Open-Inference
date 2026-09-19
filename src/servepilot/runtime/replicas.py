@@ -135,7 +135,13 @@ class ReplicaSet:
                 replica.id, replica.base_url, gpu_ids=spec.gpu_ids, pid=replica.process.pid
             )
             state.status = ReplicaStatus.STARTING
-        readiness = await self.engine.wait_until_ready(spec, replica.process, self.startup_timeout)
+        try:
+            readiness = await self.engine.wait_until_ready(
+                spec, replica.process, self.startup_timeout
+            )
+        except BaseException:
+            await replica.process.terminate()
+            raise
         if not readiness.ready:
             failure = readiness.failure or CandidateFailure(
                 type=FailureType.UNKNOWN, message="not ready"

@@ -174,6 +174,9 @@ class VLLMEngine(InferenceEngine):
     def supports_ray_backend(self) -> bool:
         return True
 
+    def supports_native_backend(self) -> bool:
+        return parse_version(self.version()) >= (0, 17, 0)
+
     def default_max_num_seqs(self) -> int:
         return 256
 

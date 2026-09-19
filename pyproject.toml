@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "servepilot"
 version = "1.0.0"
-description = "Automatically determine the fastest way to serve an LLM on your NVIDIA GPUs, optimizing time to first token and throughput."
+description = "Open BaseTen: autonomous, verified inference optimization on existing NVIDIA GPU machines."
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
@@ -46,10 +46,8 @@ dependencies = [
 [project.optional-dependencies]
 # Full Hugging Face tokenizer coverage (slow/sentencepiece tokenizers without tokenizer.json).
 hf = ["transformers>=4.44"]
-# Multi-node clusters: cluster-wide GPU discovery and remote engine placement through Ray.
+# Optional runtime for inference configurations that use Ray.
 ray = ["ray>=2.30"]
-# `servepilot launch`: rent machines in your own AWS, GCP or Azure account through SkyPilot.
-cloud = ["skypilot[aws,gcp,azure]>=0.9"]
 dev = [
   "pytest>=8.2",
   "pytest-asyncio>=0.23",
@@ -65,6 +63,7 @@ dev = [
 
 [project.scripts]
 servepilot = "servepilot.cli:main"
+openbaseten = "servepilot.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/colinlikescode/Open-Baseten-Inference"
@@ -75,7 +74,7 @@ Issues = "https://github.com/colinlikescode/Open-Baseten-Inference/issues"
 packages = ["src/servepilot"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/servepilot", "README.md", "LICENSE", "pyproject.toml"]
+include = ["src/servepilot", "README.md", "instructions.md", "docs", "examples", "LICENSE", "SECURITY.md", "pyproject.toml"]
 
 # ---------------------------------------------------------------------------
 # Ruff

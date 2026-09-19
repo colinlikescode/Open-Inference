@@ -47,6 +47,7 @@ class HealthChecker:
         restart_window: float = DEFAULT_REPLICA_RESTART_WINDOW_SECONDS,
         restart_backoff: float = DEFAULT_REPLICA_RESTART_BACKOFF_SECONDS,
         restart_enabled: bool = True,
+        on_restart: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._router = router
         self._set = replica_set
@@ -57,6 +58,7 @@ class HealthChecker:
         self._window = restart_window
         self._backoff = restart_backoff
         self._restart_enabled = restart_enabled
+        self._on_restart = on_restart
         self._task: asyncio.Task[None] | None = None
         self._restart_times: dict[int, deque[float]] = {}
         self._restarting: set[int] = set()
@@ -132,7 +134,7 @@ class HealthChecker:
                 resp = await client.get(replica.base_url + path)
             except (httpx.HTTPError, OSError):
                 continue
-            if resp.status_code < 500:
+            if 200 <= resp.status_code < 300:
                 return True
         return False
 
@@ -168,6 +170,8 @@ class HealthChecker:
         try:
             await asyncio.sleep(delay)
             fresh = await self._set.restart_replica(replica)
+            if self._on_restart is not None:
+                await self._on_restart()
             self._record(f"{fresh.id} restarted successfully")
         except Exception as exc:
             self._record(f"{replica.id} restart failed: {exc}")

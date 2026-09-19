@@ -341,7 +341,7 @@ def generate_candidates(
                 plans.append(plan)
 
     # Cross-node candidates: only when nothing fits inside one machine (or the user forced TP>node).
-    if selected.is_cluster and not plans:
+    if selected.is_cluster and (not plans or selected.provider == "ssh"):
         plans.extend(
             _cross_node_candidates(
                 selected,
@@ -477,16 +477,20 @@ def _cross_node_candidates(
     for engine in engines:
         if constraints.engine is not None and engine.engine_name != constraints.engine:
             continue
-        if not engine.supports_ray_backend():
+        native = snapshot.provider == "ssh" and engine.supports_native_backend()
+        if not engine.supports_ray_backend() and not native:
             result.excluded.append(
                 ExcludedCandidate(
                     description=f"{engine.name()} multi-node",
-                    reason=f"{engine.name()} has no Ray-backed multi-node executor in ServePilot; only per-machine replicas are supported for it",
+                    reason=f"{engine.name()} has no supported distributed executor on this connection",
                     engine=engine.engine_name,
                 )
             )
             continue
         for tp_size, pp_size, why in shapes:
+            backend = (
+                ("mp" if engine.engine_name == EngineName.VLLM else "native") if native else "ray"
+            )
             if pp_size > 1 and not engine.supports_pipeline_parallel():
                 continue
             estimate = estimate_memory(
@@ -501,7 +505,7 @@ def _cross_node_candidates(
                 memory_fraction=constraints.memory_fraction,
             )
             plan = CandidatePlan(
-                id=_plan_id(engine.engine_name, tp_size, pp_size, 1, "-ray"),
+                id=_plan_id(engine.engine_name, tp_size, pp_size, 1, f"-{backend}"),
                 engine=engine.engine_name,
                 gpu_groups=[all_gpus],
                 tensor_parallel_size=tp_size,
@@ -516,7 +520,7 @@ def _cross_node_candidates(
                 kv_cache_dtype=constraints.kv_cache_dtype,
                 engine_args=dict(constraints.extra_engine_args),
                 estimated_memory=estimate,
-                distributed_backend="ray",
+                distributed_backend=backend,
                 replica_nodes=[[snapshot.node_of(g) or "local" for g in all_gpus]],
             )
             plan.max_running_requests = plan.max_num_seqs
@@ -541,7 +545,7 @@ def _cross_node_candidates(
                 else CandidateViability.UNKNOWN
             )
             plan.rationale = [
-                "The model does not fit inside a single machine, so one replica spans the cluster via vLLM's Ray executor.",
+                f"One replica spans the existing machines using {engine.name()}'s {backend} runtime.",
                 why,
                 f"Estimated weights per GPU: {format_bytes(estimate.weights_bytes)}.",
                 *support.warnings,

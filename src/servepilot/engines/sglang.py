@@ -174,6 +174,9 @@ class SGLangEngine(InferenceEngine):
     def supports_ray_backend(self) -> bool:
         return False
 
+    def supports_native_backend(self) -> bool:
+        return parse_version(self.version()) >= (0, 4, 5)
+
     def default_max_num_seqs(self) -> int:
         return 256
 
@@ -189,9 +192,7 @@ class SGLangEngine(InferenceEngine):
         if method and method not in SGLANG_QUANTIZATION_METHODS:
             reasons.append(f"quantization method {method!r} is not known to be supported by SGLang")
         if plan.distributed_backend == "ray":
-            reasons.append(
-                "SGLang does not use a Ray executor; multi-node SGLang uses --nnodes which ServePilot does not orchestrate"
-            )
+            reasons.append("SGLang uses its native multi-node runtime, not a Ray executor")
         if plan.dp_attention_enabled and not self.supports_dp_attention(model):
             reasons.append(
                 f"DP attention optimization is not known to support model type {model.model_type!r}"

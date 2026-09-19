@@ -1,0 +1,8 @@
+# Run the controller on a Linux CPU head machine with SSH access to these existing GPU workers.
+ssh_user: ubuntu
+nodes:
+  - host: 10.0.0.11
+  - host: 10.0.0.12
+# For SSH aliases, set address to the interface reachable by the controller and other workers.
+# ssh_identity_file: ~/.ssh/id_ed25519
+# head: 10.0.0.11

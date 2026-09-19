@@ -188,6 +188,9 @@ class InferenceEngine(ABC):
     def supports_ray_backend(self) -> bool:
         return False
 
+    def supports_native_backend(self) -> bool:
+        return False
+
     def default_max_num_seqs(self) -> int:
         return 256
 
@@ -216,7 +219,7 @@ class InferenceEngine(ABC):
                     return ReadinessResult(False, time.monotonic() - start, failure)
                 try:
                     resp = await client.get(base + spec.readiness_path)
-                    if resp.status_code < 500:
+                    if 200 <= resp.status_code < 300:
                         metadata: dict[str, Any] = {}
                         try:
                             metadata = self.extract_runtime_metadata(resp.json())

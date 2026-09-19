@@ -19,13 +19,13 @@ from servepilot.engines.base import InferenceEngine
 from servepilot.engines.process import Launcher, LocalLauncher
 from servepilot.engines.registry import (
     EngineRegistry,
-    assumed_engines,
     build_registry,
     select_engines,
 )
 from servepilot.exceptions import ConfigurationError, ServePilotError
 from servepilot.hardware.base import HardwareProvider, get_hardware_provider
 from servepilot.logging import get_logger
+from servepilot.models.auth import hf_token as hf_token
 from servepilot.models.inspector import ModelInspector
 from servepilot.runtime.ports import PortAllocator
 from servepilot.runtime.state import RuntimeStateStore
@@ -77,22 +77,10 @@ def emit_json(payload: Any) -> None:
     sys.stdout.flush()
 
 
-def hf_token() -> str | None:
-    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
-    if token:
-        return token
-    try:
-        from huggingface_hub import get_token
-
-        return get_token()
-    except Exception:
-        return None
-
-
 # --------------------------------------------------------------------------- flags shared by plan/tune/serve
 BASICS = "Basics"
 TRAFFIC = "Traffic details"
-HARDWARE = "Hardware and cloud"
+HARDWARE = "Existing hardware"
 ADVANCED = "Advanced"
 
 ModelArg = Annotated[
@@ -209,33 +197,6 @@ NoStreamOpt = Annotated[
     ),
 ]
 
-CloudOpt = Annotated[
-    str | None,
-    typer.Option(
-        "--cloud",
-        help="Plan for a cloud machine shape: aws | gcp | azure.",
-        rich_help_panel=HARDWARE,
-    ),
-]
-InstanceOpt = Annotated[
-    str | None,
-    typer.Option(
-        "--instance",
-        help="Cloud instance type, like p5.48xlarge, a3-highgpu-8g or Standard_ND96isr_H100_v5.",
-        rich_help_panel=HARDWARE,
-    ),
-]
-AcceleratorsOpt = Annotated[
-    str | None,
-    typer.Option(
-        "--accelerators",
-        help="GPU model and count per node, like H100:8 (alternative to --instance).",
-        rich_help_panel=HARDWARE,
-    ),
-]
-NodesOpt = Annotated[
-    int, typer.Option("--nodes", help="How many machines.", rich_help_panel=HARDWARE)
-]
 RayAddressOpt = Annotated[
     str | None,
     typer.Option(
@@ -365,10 +326,6 @@ class PlanFlags:
     host: str | None = None
     port: int | None = None
     startup_timeout: float | None = None
-    cloud: str | None = None
-    instance: str | None = None
-    accelerators: str | None = None
-    nodes: int = 1
 
     def overrides(self) -> dict[str, Any]:
         gpus: list[int] | None = None
@@ -519,34 +476,15 @@ def build_workspace(flags: PlanFlags, state: CLIState, *, on_engine_line: Any = 
     settings = state.settings
     config = build_config(flags)
     assert config.model is not None
-    if flags.cloud:
-        from servepilot.cloud.catalog import catalog_snapshot
-        from servepilot.testing.fake_hardware import FakeHardwareProvider
-
-        hardware = catalog_snapshot(
-            provider=flags.cloud,
-            instance=flags.instance,
-            accelerators=flags.accelerators,
-            nodes=flags.nodes,
-        )
-        provider: HardwareProvider = FakeHardwareProvider(hardware)
-    else:
-        if flags.ray_address and "RAY_ADDRESS" not in os.environ:
-            # Forwarded into every engine environment so multi-node vLLM (Ray executor) joins
-            # this cluster rather than whichever local Ray instance it finds first.
-            os.environ["RAY_ADDRESS"] = flags.ray_address
-        provider = make_hardware_provider(settings, flags.ray_address)
-        hardware = provider.snapshot()
+    if flags.ray_address and "RAY_ADDRESS" not in os.environ:
+        os.environ["RAY_ADDRESS"] = flags.ray_address
+    provider = make_hardware_provider(settings, flags.ray_address)
+    hardware = provider.snapshot()
     inspector = ModelInspector(token=hf_token())
     model = inspector.inspect(config.model, revision=config.model_options.revision)
     workload = config.build_workload()
     registry = build_registry(settings)
-    if flags.cloud:
-        # Planning for a machine you do not have yet: the engines get installed there, so
-        # assume the ones you asked for (or both) are available.
-        engines = assumed_engines(config.engine)
-    else:
-        engines = select_engines(registry, config.engine)
+    engines = select_engines(registry, config.engine)
     constraints = constraints_from_config(config)
     return Workspace(
         settings=settings,

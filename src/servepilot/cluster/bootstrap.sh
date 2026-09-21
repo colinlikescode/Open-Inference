@@ -29,15 +29,15 @@ if ! command -v nvidia-ctk >/dev/null 2>&1; then
         trap 'rm -rf "$setup_dir"' EXIT
         curl --fail --silent --show-error --location https://nvidia.github.io/libnvidia-container/gpgkey -o "$setup_dir/key"
         gpg --batch --dearmor --output "$setup_dir/keyring.gpg" "$setup_dir/key"
-        elevate install -m 0644 "$setup_dir/keyring.gpg" /usr/share/keyrings/openbaseten-nvidia.gpg
+        elevate install -m 0644 "$setup_dir/keyring.gpg" /usr/share/keyrings/opensandbox-nvidia.gpg
         curl --fail --silent --show-error --location https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list -o "$setup_dir/repository"
-        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/openbaseten-nvidia.gpg] https://#' "$setup_dir/repository" > "$setup_dir/signed-repository"
-        elevate install -m 0644 "$setup_dir/signed-repository" /etc/apt/sources.list.d/openbaseten-nvidia.list
+        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/opensandbox-nvidia.gpg] https://#' "$setup_dir/repository" > "$setup_dir/signed-repository"
+        elevate install -m 0644 "$setup_dir/signed-repository" /etc/apt/sources.list.d/opensandbox-nvidia.list
         elevate apt-get update
         elevate env DEBIAN_FRONTEND=noninteractive apt-get install -y nvidia-container-toolkit
     elif command -v dnf >/dev/null 2>&1; then
         elevate dnf install -y curl
-        elevate curl --fail --silent --show-error --location https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo -o /etc/yum.repos.d/openbaseten-nvidia.repo
+        elevate curl --fail --silent --show-error --location https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo -o /etc/yum.repos.d/opensandbox-nvidia.repo
         elevate dnf install -y nvidia-container-toolkit
     else
         echo 'Install NVIDIA Container Toolkit on this worker before using --no-bootstrap.' >&2

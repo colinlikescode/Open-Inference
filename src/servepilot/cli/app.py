@@ -99,7 +99,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 app = typer.Typer(
     name="servepilot",
-    help="Open BaseTen: optimize and serve models on your existing NVIDIA GPUs.",
+    help="Open Sandbox: optimize and serve models on your existing NVIDIA GPUs.",
     no_args_is_help=True,
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -213,7 +213,7 @@ def doctor(
         if json_output:
             emit_json(diagnostics)
         else:
-            state.console.print(f"Open BaseTen cluster checks: {diagnostics['status']}")
+            state.console.print(f"Open Sandbox cluster checks: {diagnostics['status']}")
             for check in diagnostics["checks"]:
                 state.console.print(
                     f"  {check.get('node', 'controller')}: {check['check']} — {check['detail']}"
@@ -817,7 +817,7 @@ def status(ctx: typer.Context, json_output: JSONOpt = False) -> None:
             emit_json(controller)
         else:
             state.console.print(
-                f"Open BaseTen {controller['phase']}: {controller['message']}\nOutput: {controller['output']}\nPID: {controller['pid']}"
+                f"Open Sandbox {controller['phase']}: {controller['message']}\nOutput: {controller['output']}\nPID: {controller['pid']}"
             )
         return
     store = RuntimeStateStore(state.settings.state_dir)

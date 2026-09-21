@@ -136,7 +136,7 @@ def load_yaml(path: Path) -> Any:
 
 def agent_settings(options: OptimizeOptions) -> AgentConfig:
     data = dict(load_yaml(options.agent_config) or {}) if options.agent_config else {}
-    data.setdefault("model", os.environ.get("OPENBASETEN_AGENT_MODEL", "gemini-3.8-flash"))
+    data.setdefault("model", os.environ.get("OPENSANDBOX_AGENT_MODEL", "gemini-3.8-flash"))
     data.setdefault("base_url", os.environ.get("LITELLM_BASE_URL", "http://127.0.0.1:4000/v1"))
     if options.agent_model:
         data["model"] = options.agent_model
@@ -661,7 +661,7 @@ async def optimize(
             atomic_write(
                 output / "report.html",
                 (
-                    "<!doctype html><meta charset='utf-8'><title>Open BaseTen setup</title><h1>No verified configuration</h1><p>"
+                    "<!doctype html><meta charset='utf-8'><title>Open Sandbox setup</title><h1>No verified configuration</h1><p>"
                     + html.escape(reason + ": " + detail)
                     + "</p><p>Setup progress is saved. Continue with <code>servepilot optimize --resume "
                     + html.escape(str(output))

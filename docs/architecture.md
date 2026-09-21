@@ -1,4 +1,4 @@
-# How Open BaseTen works
+# How Open Sandbox works
 
 The primary flow is `optimize`: a CPU controller inspects supplied GPU machines through SSH,
 prepares pinned engine containers, establishes a baseline, and asks Pi for experiments through

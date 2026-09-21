@@ -1,8 +1,8 @@
 /** Only controller-provided tools are registered. No host shell or filesystem tools. */
 export default function (pi) {
-  const tools = JSON.parse(process.env.OPENBASETEN_AGENT_TOOLS || "[]");
-  const base = process.env.OPENBASETEN_AGENT_BRIDGE;
-  const token = process.env.OPENBASETEN_AGENT_BRIDGE_TOKEN;
+  const tools = JSON.parse(process.env.OPENSANDBOX_AGENT_TOOLS || "[]");
+  const base = process.env.OPENSANDBOX_AGENT_BRIDGE;
+  const token = process.env.OPENSANDBOX_AGENT_BRIDGE_TOKEN;
   for (const tool of tools) {
     pi.registerTool({
       name: tool.name,

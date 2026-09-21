@@ -125,7 +125,7 @@ class ContainerBackend(LaunchBackend):
                         for url in urls:
                             body = (
                                 {
-                                    "output_dir": "/tmp/openbaseten-profile",
+                                    "output_dir": "/tmp/opensandbox-profile",
                                     "activities": ["CPU", "GPU"],
                                 }
                                 if proposal.plan.engine == "sglang"
@@ -166,7 +166,7 @@ class ContainerBackend(LaunchBackend):
                     # Ray daemon containers host executor ranks too; collect traces wherever
                     # the runtime wrote them, while allowing nodes with no profiler output.
                     exists = await self.manager.command(
-                        node, ["exec", name, "test", "-d", "/tmp/openbaseten-profile"], check=False
+                        node, ["exec", name, "test", "-d", "/tmp/opensandbox-profile"], check=False
                     )
                     if exists.returncode:
                         continue
@@ -282,7 +282,7 @@ class ContainerBackend(LaunchBackend):
                     encoded,
                 ]
             )
-            directory = str(args.get("directory", "/opt/openbaseten/changes"))
+            directory = str(args.get("directory", "/opt/opensandbox/changes"))
             result = await shell({"command": "cd " + shlex.quote(directory) + " && " + command})
             self._draft_files.append(
                 RuntimeFile(
@@ -359,7 +359,7 @@ class ContainerBackend(LaunchBackend):
             ),
             AgentTool(
                 "write_runtime_file",
-                "Write a source, patch, Triton, or CUDA file below /opt/openbaseten/changes inside the experimental image.",
+                "Write a source, patch, Triton, or CUDA file below /opt/opensandbox/changes inside the experimental image.",
                 RuntimeFile.model_json_schema(),
                 write,
             ),

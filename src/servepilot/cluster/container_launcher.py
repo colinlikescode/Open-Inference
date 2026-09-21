@@ -167,7 +167,7 @@ class ContainerLauncher:
             CUDA_VISIBLE_DEVICES=",".join(uuids),
             CUDA_DEVICE_ORDER="PCI_BUS_ID",
             HF_HOME="/model-cache",
-            HF_MODULES_CACHE="/tmp/openbaseten-hf-modules",
+            HF_MODULES_CACHE="/tmp/opensandbox-hf-modules",
             HF_HUB_OFFLINE="1",
             TRANSFORMERS_OFFLINE="1",
             VLLM_HOST_IP=node.network_address,
@@ -180,7 +180,7 @@ class ContainerLauncher:
             "--name",
             name,
             "--label",
-            f"openbaseten.run={self.manager.namespace}",
+            f"opensandbox.run={self.manager.namespace}",
             "--network",
             "host",
             "--cap-drop",
@@ -237,7 +237,7 @@ class ContainerLauncher:
                 json.dumps(
                     {
                         "profiler": "torch",
-                        "torch_profiler_dir": "/tmp/openbaseten-profile",
+                        "torch_profiler_dir": "/tmp/opensandbox-profile",
                         "torch_profiler_with_stack": False,
                     }
                 ),

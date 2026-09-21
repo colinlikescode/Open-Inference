@@ -47,7 +47,7 @@ def change_commands(changes: RuntimeChanges) -> list[str]:
     commands = []
     for file in changes.files:
         encoded = base64.b64encode(file.content.encode()).decode()
-        path = "/opt/openbaseten/changes/" + file.path
+        path = "/opt/opensandbox/changes/" + file.path
         program = (
             "import base64,pathlib; p=pathlib.Path("
             + repr(path)
@@ -62,7 +62,7 @@ def change_commands(changes: RuntimeChanges) -> list[str]:
 def runtime_dockerfile(base_image: str, commands: list[str]) -> str:
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_./:@-]*", base_image):
         raise ConfigurationError("invalid base image reference")
-    lines = [f"FROM {base_image}", "WORKDIR /opt/openbaseten/changes"]
+    lines = [f"FROM {base_image}", "WORKDIR /opt/opensandbox/changes"]
     lines.extend("RUN " + json.dumps(["/bin/sh", "-ec", command]) for command in commands)
     return "\n".join(lines) + "\n"
 
@@ -230,7 +230,7 @@ class ContainerManager:
             "--name",
             name,
             "--label",
-            f"openbaseten.run={self.namespace}",
+            f"opensandbox.run={self.namespace}",
             "--network",
             "none",
             "--cap-drop",
@@ -287,7 +287,7 @@ class ContainerManager:
     async def run_step(self, node: SSHNode, image: str, command: str) -> tuple[str, str]:
         name = self.container_name("edit")
         script = (
-            "set -eu\nmkdir -p /opt/openbaseten/changes\ncd /opt/openbaseten/changes\n" + command
+            "set -eu\nmkdir -p /opt/opensandbox/changes\ncd /opt/opensandbox/changes\n" + command
         )
         try:
             await self.command(
@@ -297,7 +297,7 @@ class ContainerManager:
                     "--name",
                     name,
                     "--label",
-                    f"openbaseten.run={self.namespace}",
+                    f"opensandbox.run={self.namespace}",
                     "--cap-drop",
                     "ALL",
                     "--security-opt",
@@ -474,7 +474,7 @@ class ContainerManager:
             result = await self.transport.run(
                 node,
                 self.docker(
-                    node, "ps", "-aq", "--filter", f"label=openbaseten.run={self.namespace}"
+                    node, "ps", "-aq", "--filter", f"label=opensandbox.run={self.namespace}"
                 ),
             )
             for container in result.stdout.split():
@@ -489,7 +489,7 @@ class ContainerManager:
     async def export_profiles(self, node: SSHNode, container: str, path: Path) -> str:
         return await self._export(
             node,
-            ["cp", f"{container}:/tmp/openbaseten-profile", "-"],
+            ["cp", f"{container}:/tmp/opensandbox-profile", "-"],
             path,
             max_bytes=512 * 1024 * 1024,
         )

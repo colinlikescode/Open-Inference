@@ -118,9 +118,9 @@ def write_report(
         improvement = winner.decision.score / baseline.decision.score - 1
     page = f"""<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Open BaseTen optimization report</title>
+<title>Open Sandbox optimization report</title>
 <style>body{{font:16px system-ui,sans-serif;max-width:1200px;margin:3rem auto;padding:0 1.5rem;color:#17212d;background:#f9fafb}}h1,h2{{color:#132f4c}}table{{border-collapse:collapse;width:100%;margin:1rem 0 2rem;background:white}}th,td{{border:1px solid #d9e1e8;padding:.65rem;text-align:left;vertical-align:top}}th{{background:#e9eef4}}code{{overflow-wrap:anywhere}}.notice{{padding:1rem;border-left:4px solid #276c9b;background:#edf5fa}}</style>
-<h1>Open BaseTen optimization report</h1>
+<h1>Open Sandbox optimization report</h1>
 {'<p class="notice"><strong>CPU SIMULATION:</strong> fake inference and hardware. These numbers are not GPU performance measurements.</p>' if simulation else ""}
 <p class="notice">Best verified configuration discovered within the allocated experiment budget. This is not a claim of a global optimum.</p>
 <p><strong>Model:</strong> {_escape(definition.model.model_id)} · <strong>Revision:</strong> {_escape(definition.model.revision or "local model")}<br>

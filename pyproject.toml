@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "servepilot"
 version = "1.0.0"
-description = "Open BaseTen: autonomous, verified inference optimization on existing NVIDIA GPU machines."
+description = "Open Sandbox: autonomous, verified inference optimization on existing NVIDIA GPU machines."
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
@@ -63,12 +63,12 @@ dev = [
 
 [project.scripts]
 servepilot = "servepilot.cli:main"
-openbaseten = "servepilot.cli:main"
+opensandbox = "servepilot.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/colinlikescode/Open-Baseten-Inference"
-Documentation = "https://github.com/colinlikescode/Open-Baseten-Inference/tree/main/docs"
-Issues = "https://github.com/colinlikescode/Open-Baseten-Inference/issues"
+Homepage = "https://github.com/colinlikescode/Open-Sandbox-Inference"
+Documentation = "https://github.com/colinlikescode/Open-Sandbox-Inference/tree/main/docs"
+Issues = "https://github.com/colinlikescode/Open-Sandbox-Inference/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/servepilot"]

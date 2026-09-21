@@ -38,7 +38,7 @@ class ModelCache:
         self.manager = manager
         self.model = model
         self.volume = (
-            "openbaseten-model-"
+            "opensandbox-model-"
             + fingerprint({"id": model.model_id, "revision": model.revision})[:24]
         )
 
@@ -52,7 +52,7 @@ class ModelCache:
             "--name",
             name,
             "--label",
-            f"openbaseten.run={self.manager.namespace}",
+            f"opensandbox.run={self.manager.namespace}",
             "--cap-drop",
             "ALL",
             "--security-opt",
@@ -108,7 +108,7 @@ class ModelCache:
             "--name",
             name,
             "--label",
-            f"openbaseten.run={self.manager.namespace}",
+            f"opensandbox.run={self.manager.namespace}",
             "--network",
             "none",
             "--mount",

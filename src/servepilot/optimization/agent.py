@@ -51,7 +51,7 @@ class AgentTurn:
     tool_calls: int
 
 
-SYSTEM_PROMPT = """You are Pi, the inference performance engineer inside Open BaseTen.
+SYSTEM_PROMPT = """You are Pi, the inference performance engineer inside Open Sandbox.
 Optimize the user's model on their existing GPUs within the remaining experiment budget.
 The objective, constraints, correctness suite, measurements and history are owned by the
 controller. You cannot change them or declare your own experiment successful.
@@ -95,10 +95,10 @@ class PiAgent:
     def models_config(self) -> dict[str, Any]:
         return {
             "providers": {
-                "openbaseten-litellm": {
+                "opensandbox-litellm": {
                     "baseUrl": self.config.base_url,
                     "api": "openai-completions",
-                    "apiKey": "$OPENBASETEN_PI_API_KEY",
+                    "apiKey": "$OPENSANDBOX_PI_API_KEY",
                     "compat": {
                         "supportsDeveloperRole": False,
                         "supportsReasoningEffort": False,
@@ -169,7 +169,7 @@ class PiAgent:
         texts: list[str] = []
         stderr: list[str] = []
         async with contextlib.AsyncExitStack():
-            with tempfile.TemporaryDirectory(prefix="openbaseten-pi-") as temporary:
+            with tempfile.TemporaryDirectory(prefix="opensandbox-pi-") as temporary:
                 directory = Path(temporary)
                 atomic_write(
                     directory / "models.json", canonical_json(self.models_config()).encode()
@@ -197,10 +197,10 @@ class PiAgent:
                 }
                 env.update(
                     PI_CODING_AGENT_DIR=str(directory),
-                    OPENBASETEN_PI_API_KEY=os.environ[self.config.api_key_env],
-                    OPENBASETEN_AGENT_BRIDGE=server.base_url,
-                    OPENBASETEN_AGENT_BRIDGE_TOKEN=token,
-                    OPENBASETEN_AGENT_TOOLS=canonical_json([tool.schema() for tool in tools]),
+                    OPENSANDBOX_PI_API_KEY=os.environ[self.config.api_key_env],
+                    OPENSANDBOX_AGENT_BRIDGE=server.base_url,
+                    OPENSANDBOX_AGENT_BRIDGE_TOKEN=token,
+                    OPENSANDBOX_AGENT_TOOLS=canonical_json([tool.schema() for tool in tools]),
                 )
                 extension = Path(__file__).with_name("agent-extension.mjs")
                 argv = [
@@ -218,7 +218,7 @@ class PiAgent:
                     "--extension",
                     str(extension),
                     "--provider",
-                    "openbaseten-litellm",
+                    "opensandbox-litellm",
                     "--model",
                     self.config.model,
                     "--thinking",

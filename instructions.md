@@ -1,12 +1,12 @@
-# Open BaseTen — Product and Implementation Instructions
+# Open Sandbox — Product and Implementation Instructions
 
-**Give Open BaseTen your model, your existing GPU machines, and an hour. It experiments with the inference stack, deploys the best verified configuration it finds, and saves a reproducible optimization report.**
+**Give Open Sandbox your model, your existing GPU machines, and an hour. It experiments with the inference stack, deploys the best verified configuration it finds, and saves a reproducible optimization report.**
 
 An autonomous inference performance engineer for GPUs you already have.
 
 This is the detailed setup and operating guide. GPU runtime paths are implemented, but this revision has been tested without real GPUs; see [validation](docs/validation.md) for the distinction between CPU checks and historical GPU measurements.
 
-The product is named **Open BaseTen**. The existing Python package and CLI are still named `servepilot`; command examples below use that current executable name.
+The product is named **Open Sandbox**. The existing Python package and CLI are still named `servepilot`; command examples below use that current executable name.
 
 ## The product boundary
 
@@ -16,7 +16,7 @@ You provide:
 - SSH access from the head node to the workers, and networking between the machines.
 - A model, a workload, an optimization objective, and a time budget.
 
-Open BaseTen returns:
+Open Sandbox returns:
 
 - An OpenAI-compatible inference endpoint.
 - The best verified configuration discovered within the budget.
@@ -24,7 +24,7 @@ Open BaseTen returns:
 - A reproducible deployment recipe, including any code changes.
 - The complete experiment history, which you can resume later.
 
-**Open BaseTen does not provision infrastructure.** It does not create or terminate machines, select cloud regions, compare GPU rental prices, or manage cloud credentials or quotas. Provisioning commands and dependencies have been removed.
+**Open Sandbox does not provision infrastructure.** It does not create or terminate machines, select cloud regions, compare GPU rental prices, or manage cloud credentials or quotas. Provisioning commands and dependencies have been removed.
 
 The machines can be in any cloud, a private datacenter, a university cluster, or on premises. The product begins after those machines exist. No Kubernetes cluster or preconfigured Ray cluster is required.
 
@@ -33,8 +33,8 @@ The machines can be in any cloud, a private datacenter, a university cluster, or
 Install the controller on the CPU cluster head or dedicated Linux machine:
 
 ```bash
-git clone https://github.com/colinlikescode/Open-Baseten-Inference.git
-cd Open-Baseten-Inference
+git clone https://github.com/colinlikescode/Open-Sandbox-Inference.git
+cd Open-Sandbox-Inference
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -e '.[hf]'
@@ -93,7 +93,7 @@ ssh_user: ubuntu
 
 The first listed GPU machine is the distributed runtime head by default; `head: HOST` overrides this. Run the controller there or on a separate CPU machine with network access to every worker.
 
-Alternatively, clone and run Open BaseTen on a dedicated Linux head machine with SSH access to the GPU workers listed in `nodes.yaml`. This control machine can be CPU-only; GPU discovery and inference then run on the workers, while Pi, the verifier, and the public endpoint run on the control machine.
+Alternatively, clone and run Open Sandbox on a dedicated Linux head machine with SSH access to the GPU workers listed in `nodes.yaml`. This control machine can be CPU-only; GPU discovery and inference then run on the workers, while Pi, the verifier, and the public endpoint run on the control machine.
 
 Then optimize:
 
@@ -123,7 +123,7 @@ servepilot optimize \
   --objective balanced
 ```
 
-Open BaseTen handles runtime setup, distributed launch, experiments, benchmarking, rollback, and final deployment. You do not manually configure Ray, inference workers, TP/PP layouts, NCCL settings, or benchmark and production launch scripts.
+Open Sandbox handles runtime setup, distributed launch, experiments, benchmarking, rollback, and final deployment. You do not manually configure Ray, inference workers, TP/PP layouts, NCCL settings, or benchmark and production launch scripts.
 
 SSH is used for setup and process control. Inference requests go directly to the HTTP endpoint, not through SSH.
 
@@ -142,7 +142,7 @@ Apply changes in an isolated experiment environment
         ↓
 Launch → correctness tests → performance benchmark
         ↓
-Open BaseTen's deterministic verifier accepts or rejects it
+Open Sandbox's deterministic verifier accepts or rejects it
         ↓
 Keep the improvement or revert; record the result
         ↓
@@ -153,13 +153,13 @@ Deploy the best verified configuration
 Endpoint + report + reproducible recipe
 ```
 
-Before launching experiments, Open BaseTen checks SSH access, GPU availability, driver and CUDA compatibility, inter-node connectivity, bandwidth, and the communication requirements of the selected runtime, including NCCL where needed. Failures identify the affected machine and check.
+Before launching experiments, Open Sandbox checks SSH access, GPU availability, driver and CUDA compatibility, inter-node connectivity, bandwidth, and the communication requirements of the selected runtime, including NCCL where needed. Failures identify the affected machine and check.
 
-The optimization budget includes inspection, setup, baseline evaluation, and experiments. Open BaseTen stops starting new experiments when the budget expires and bounds running experiments by the remaining time. Cleanup and final deployment can take additional time and are reported separately.
+The optimization budget includes inspection, setup, baseline evaluation, and experiments. Open Sandbox stops starting new experiments when the budget expires and bounds running experiments by the remaining time. Cleanup and final deployment can take additional time and are reported separately.
 
-The search can also stop manually or after a configured period without improvement. Stopping preserves completed experiments and the best verified result. If there is no verified result, Open BaseTen reports that outcome instead of claiming success.
+The search can also stop manually or after a configured period without improvement. Stopping preserves completed experiments and the best verified result. If there is no verified result, Open Sandbox reports that outcome instead of claiming success.
 
-Open BaseTen reports **the best verified configuration discovered within the allocated budget**. It does not claim a global optimum.
+Open Sandbox reports **the best verified configuration discovered within the allocated budget**. It does not claim a global optimum.
 
 ## Pi is the inference engineer
 
@@ -179,9 +179,9 @@ The target scope includes all three levels:
 
 This is intended to go beyond a fixed sweep of serving flags. Every configuration or code change is an experiment, and every accepted change must pass verification.
 
-## Open BaseTen owns verification
+## Open Sandbox owns verification
 
-**Pi proposes changes. Open BaseTen decides whether they worked.**
+**Pi proposes changes. Open Sandbox decides whether they worked.**
 
 The deterministic evaluator controls benchmark inputs, correctness checks, measurements, scoring, and acceptance. Pi cannot edit scores, change the objective, disable checks, silently loosen SLOs, declare a winner, or rewrite historical results.
 
@@ -239,15 +239,15 @@ Benchmark inputs, generation settings, seeds, and measured outputs are saved wit
 
 ## Multi-node inference
 
-One machine and sixteen machines use the same top-level interface. Open BaseTen determines how to distribute models that cannot fit or perform well on one machine.
+One machine and sixteen machines use the same top-level interface. Open Sandbox determines how to distribute models that cannot fit or perform well on one machine.
 
-The runtime is an implementation choice for each supported experiment: vLLM with Ray, native distributed execution in vLLM or SGLang, or PyTorch distributed and NCCL where appropriate. Ray can be installed and managed when a selected engine configuration needs it; it is not the foundation or a universal requirement of Open BaseTen.
+The runtime is an implementation choice for each supported experiment: vLLM with Ray, native distributed execution in vLLM or SGLang, or PyTorch distributed and NCCL where appropriate. Ray can be installed and managed when a selected engine configuration needs it; it is not the foundation or a universal requirement of Open Sandbox.
 
-Open BaseTen validates engine and hardware compatibility before attempting a layout. Unsupported combinations and failed communication checks are reported explicitly.
+Open Sandbox validates engine and hardware compatibility before attempting a layout. Unsupported combinations and failed communication checks are reported explicitly.
 
 ## Results and capacity planning
 
-At the end of optimization, Open BaseTen creates a clean deployment from the best verified experiment and reports its endpoint after readiness checks pass.
+At the end of optimization, Open Sandbox creates a clean deployment from the best verified experiment and reports its endpoint after readiness checks pass.
 
 The report includes:
 
@@ -310,7 +310,7 @@ the original configuration and workload files must remain unchanged.
 | `servepilot inspect` | Inspect hardware, models, and network topology. |
 | `servepilot doctor` | Check machine prerequisites and connectivity. |
 | `servepilot status` | Show optimization or deployment status. |
-| `servepilot stop` | Stop Open BaseTen-managed processes, preserving artifacts and leaving the machines running. |
+| `servepilot stop` | Stop Open Sandbox-managed processes, preserving artifacts and leaving the machines running. |
 
 Cloud provisioning commands such as `launch`, `clusters`, and `down`, cloud instance planning, and the SkyPilot dependency are outside the product and have been removed.
 
@@ -346,13 +346,13 @@ Cloud provisioning commands such as `launch`, `clusters`, and `down`, cloud inst
 The repository is currently installed from source:
 
 ```bash
-git clone https://github.com/colinlikescode/Open-Baseten-Inference.git
-cd Open-Baseten-Inference
+git clone https://github.com/colinlikescode/Open-Sandbox-Inference.git
+cd Open-Sandbox-Inference
 pip install -e ".[dev]"
 pytest
 ```
 
-Real inference requires Linux and supported NVIDIA GPUs and drivers. The autonomous search requires Pi and a configured LiteLLM endpoint. Open BaseTen manages the inference runtimes on the supplied machines; provider authentication and machine access are supplied by the user.
+Real inference requires Linux and supported NVIDIA GPUs and drivers. The autonomous search requires Pi and a configured LiteLLM endpoint. Open Sandbox manages the inference runtimes on the supplied machines; provider authentication and machine access are supplied by the user.
 
 See [architecture](docs/architecture.md), [planner](docs/planner.md), [benchmarking](docs/benchmarking.md), and [engine](docs/engines.md) for implementation details. Historical [GPU validation results](docs/validation.md) do not validate the new SSH/container optimizer.
 

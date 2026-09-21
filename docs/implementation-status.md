@@ -1,4 +1,4 @@
-# Open BaseTen implementation audit
+# Open Sandbox implementation audit
 
 This records the implemented scope in [instructions.md](../instructions.md) and the evidence
 available without GPUs. Checked items mean implementation and applicable CPU verification are

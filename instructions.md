@@ -33,8 +33,8 @@ The machines can be in any cloud, a private datacenter, a university cluster, or
 Install the controller on the CPU cluster head or dedicated Linux machine:
 
 ```bash
-git clone https://github.com/colinlikescode/Open-Sandbox-Inference.git
-cd Open-Sandbox-Inference
+git clone https://github.com/colinlikescode/Open-Inference.git
+cd Open-Inference
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -e '.[hf]'
@@ -346,8 +346,8 @@ Cloud provisioning commands such as `launch`, `clusters`, and `down`, cloud inst
 The repository is currently installed from source:
 
 ```bash
-git clone https://github.com/colinlikescode/Open-Sandbox-Inference.git
-cd Open-Sandbox-Inference
+git clone https://github.com/colinlikescode/Open-Inference.git
+cd Open-Inference
 pip install -e ".[dev]"
 pytest
 ```

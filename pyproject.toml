@@ -66,9 +66,9 @@ servepilot = "servepilot.cli:main"
 opensandbox = "servepilot.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/colinlikescode/Open-Sandbox-Inference"
-Documentation = "https://github.com/colinlikescode/Open-Sandbox-Inference/tree/main/docs"
-Issues = "https://github.com/colinlikescode/Open-Sandbox-Inference/issues"
+Homepage = "https://github.com/colinlikescode/Open-Inference"
+Documentation = "https://github.com/colinlikescode/Open-Inference/tree/main/docs"
+Issues = "https://github.com/colinlikescode/Open-Inference/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/servepilot"]
